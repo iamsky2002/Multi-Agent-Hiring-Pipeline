@@ -50,9 +50,13 @@ class VectorStore:
 
     def search_candidates(self, query: str, top_k: int = 5) -> list[dict]:
         """Searches for semantically similar candidates based on the query."""
+        candidate_count = self.collection.count()
+        if candidate_count == 0:
+            return []
+
         results = self.collection.query(
             query_texts=[query],
-            n_results=top_k
+            n_results=min(top_k, candidate_count)
         )
         
         # Format the output to be easily consumable by the agent
