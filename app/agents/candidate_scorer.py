@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from typing import List
 from pydantic import BaseModel
 from contextlib import AsyncExitStack
@@ -45,8 +46,8 @@ class CandidateScorer(BaseAgent):
     def __init__(self):
         super().__init__(name="CandidateScorer")
         self.server_params = StdioServerParameters(
-            command="uv",
-            args=["run", "python", "-m", "app.mcp_servers.candidate_db_server.server"],
+            command=sys.executable,
+            args=["-m", "app.mcp_servers.candidate_db_server.server"],
             env=None
         )
         self.llm = get_llm_provider()

@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from typing import Optional
 from pydantic import BaseModel
 from contextlib import AsyncExitStack
@@ -26,8 +27,8 @@ class JDAnalyser(BaseAgent):
         # In a real deployed environment, this might point to a binary or an HTTP SSE endpoint.
         # Here we run the server script directly via stdio.
         self.server_params = StdioServerParameters(
-            command="uv",
-            args=["run", "python", "-m", "app.mcp_servers.jd_parser_server.server"],
+            command=sys.executable,
+            args=["-m", "app.mcp_servers.jd_parser_server.server"],
             env=None # Inherit current environment which has OPENAI_API_KEY
         )
 
