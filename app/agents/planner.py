@@ -52,21 +52,13 @@ class PlannerAgent(BaseAgent):
         """
         graph = TaskGraph(run_id=request.run_id)
 
+        # JD approval is a hard gate. Candidate screening and outreach are
+        # resumed explicitly from the review workflow after approval.
         graph.tasks = [
             Task(
                 name="extract_jd",
                 agent="JDAnalyser",
                 depends_on=[],
-            ),
-            Task(
-                name="score_candidates",
-                agent="CandidateScorer",
-                depends_on=["extract_jd"],
-            ),
-            Task(
-                name="draft_outreach",
-                agent="OutreachDrafter",
-                depends_on=["score_candidates"],
             ),
         ]
 

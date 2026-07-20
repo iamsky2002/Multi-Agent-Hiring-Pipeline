@@ -515,39 +515,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
             container.innerHTML = queue.map(item => {
                 let contextHtml = '';
-                if (item.context_data && item.context_data.length > 0) {
-                    if (item.agent === 'CandidateScorer') {
-                        contextHtml = '<div class="review-context"><h4>Candidate Scores</h4>' + item.context_data.map(c => `
-                            <div class="rationale-box">
-                                <strong>Candidate: ${c.candidate_id}</strong> (Score: ${c.final_score.toFixed(2)})
-                                <p><strong>Matched Skills:</strong> ${c.rationale?.matched_skills?.join(', ') || 'None'}</p>
-                                <p><strong>Missing Skills:</strong> ${c.rationale?.missing_skills?.join(', ') || 'None'}</p>
-                                <p><strong>Reasoning:</strong> ${c.rationale?.reasoning || 'N/A'}</p>
-                            </div>
-                        `).join('') + '</div>';
-                    } else if (item.agent === 'OutreachDrafter') {
-                        contextHtml = '<div class="review-context"><h4>Drafted Emails</h4>' + item.context_data.map(e => `
-                            <div class="email-preview">
-                                <strong>To Candidate: ${e.candidate_id}</strong>
-                                <p><strong>Subject:</strong> ${e.subject}</p>
-                                <pre>${e.body}</pre>
-                            </div>
-                        `).join('') + '</div>';
-                    }
+            if (item.context_data && item.context_data.length > 0) {
+                if (item.agent === 'JDAnalyser') {
+                    const jd = item.context_data[0];
+                    contextHtml = `
+                        <div class="review-context">
+                            <h4>Job Description Evidence</h4>
+                            <p><strong>Original JD:</strong></p>
+                            <pre class="review-source">${jd.raw_job_description}</pre>
+                            <p><strong>Extracted requirements to approve or reject:</strong></p>
+                            <pre class="review-source">${JSON.stringify(jd.extracted_job_description, null, 2)}</pre>
+                        </div>`;
+                } else if (item.agent === 'CandidateReview') {
+                    const c = item.context_data[0];
+                    contextHtml = `
+                        <div class="review-context">
+                            <h4>Candidate evidence — approve or reject this person</h4>
+                            <p><strong>${c.name}</strong> ${c.email ? `(${c.email})` : ''}</p>
+                            <p><strong>Final fit score:</strong> ${Number(c.final_score).toFixed(2)} &nbsp; <strong>Semantic:</strong> ${Number(c.semantic_similarity).toFixed(2)} &nbsp; <strong>LLM match:</strong> ${Number(c.llm_rerank_score).toFixed(2)}</p>
+                            <p><strong>Matched skills:</strong> ${(c.matched_skills || []).join(', ') || 'None'}</p>
+                            <p><strong>Missing skills:</strong> ${(c.missing_skills || []).join(', ') || 'None'}</p>
+                            <p><strong>Scoring rationale:</strong> ${c.rationale || 'No rationale supplied.'}</p>
+                            <p><strong>Stored resume/profile used for this decision:</strong></p>
+                            <pre class="review-source">${c.resume_profile}</pre>
+                        </div>`;
+                } else if (item.agent === 'OutreachDrafter') {
+                    contextHtml = '<div class="review-context"><h4>Drafted Emails</h4>' + item.context_data.map(e => `
+                        <div class="email-preview">
+                            <strong>To Candidate: ${e.candidate_id}</strong>
+                            <p><strong>Subject:</strong> ${e.subject}</p>
+                            <pre>${e.body}</pre>
+                        </div>
+                    `).join('') + '</div>';
                 }
+            }
+            const reviewMetrics = item.agent === 'CandidateReview'
+                ? '<div class="review-reason">Recruiter decision required. Review the resume/profile and match evidence below.</div>'
+                : `<div class="review-scores">
+                    <span>Relevance: ${item.relevance.toFixed(2)}</span>
+                    <span>Faithfulness: ${item.faithfulness.toFixed(2)}</span>
+                    <span>Completeness: ${item.completeness.toFixed(2)}</span>
+                </div>
+                <div class="review-reason">${item.review_reason || 'Below threshold'}</div>`;
 
-                return `
+            return `
                 <div class="review-card" id="review-${item.id}">
                     <div class="review-card-header">
                         <span class="review-agent">${item.agent}</span>
                         <span class="review-flag">Needs Review</span>
                     </div>
-                    <div class="review-scores">
-                        <span>Relevance: ${item.relevance.toFixed(2)}</span>
-                        <span>Faithfulness: ${item.faithfulness.toFixed(2)}</span>
-                        <span>Completeness: ${item.completeness.toFixed(2)}</span>
-                    </div>
-                    <div class="review-reason">${item.review_reason || 'Below threshold'}</div>
+                    ${reviewMetrics}
                     ${contextHtml}
                     <div class="review-actions">
                         <button class="btn-approve" onclick="submitReview('${item.id}', 'approved')">Approve</button>

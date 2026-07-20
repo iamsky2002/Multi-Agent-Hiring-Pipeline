@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 from app.agents.planner import PlannerAgent, PlannerRequest
 from app.orchestration.events import event_emitter
 from app.infra.redis_client import task_queue
-from app.infra.db import Run
+from app.infra.db import Run, JobDescription
 from app.dependencies import get_db
 from app.api.auth import get_current_hr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,8 +39,18 @@ async def execute_pipeline_background(request: PlannerRequest, hr_email: str, db
         planner.context = {'hr_email': hr_email}
         response = await planner.run(request)
         
-        # Unpack context and save to DB so review queue and other tabs work!
+        # Persist the JD immediately; later workflow stages are explicitly resumed
+        # only after recruiter decisions in the review queue.
         from app.infra.db import ScoredCandidateDB, OutreachEmailDB, EvalResultDB
+        extracted_jd = response.context.get("extracted_jd")
+        if extracted_jd:
+            db.add(JobDescription(
+                run_id=response.run_id,
+                raw_text=request.raw_jd_text,
+                extracted_json=extracted_jd,
+                confidence=extracted_jd.get("confidence", 0.0),
+            ))
+
         candidates = response.context.get("scored_candidates", [])
         for c in candidates:
             db.add(ScoredCandidateDB(
@@ -110,7 +120,7 @@ async def run_pipeline(
     # Create the planner request which generates the run_id inside the task graph if needed.
     # Actually, planner creates the run_id inside _build_task_graph. We need the run_id here.
     # Let's create a DB record first.
-    db_run = Run(goal_text=payload.goal_text, status="pending")
+    db_run = Run(goal_text=payload.goal_text, status="pending", created_by=hr_email)
     db.add(db_run)
     await db.commit()
     await db.refresh(db_run)

@@ -160,6 +160,12 @@ class PipelineStateMachine:
             # Run G-Eval on the agent's output
             eval_result = await self._evaluate_task(task, result)
             if eval_result:
+                # A recruiter must approve the extracted JD before any candidate
+                # profile is screened or any outreach is drafted.
+                if task.agent == "JDAnalyser":
+                    eval_result.needs_human_review = True
+                    gate_reason = "Recruiter approval of the extracted job description is required before candidate screening."
+                    eval_result.review_reason = "; ".join(filter(None, [eval_result.review_reason, gate_reason]))
                 self.eval_results.append(eval_result.model_dump())
 
             summary = self._summarize_result(task, result)
@@ -286,4 +292,3 @@ class PipelineStateMachine:
         elif task.agent == "OutreachDrafter":
             return f"Drafted {len(result.emails)} outreach emails"
         return "Completed"
-
